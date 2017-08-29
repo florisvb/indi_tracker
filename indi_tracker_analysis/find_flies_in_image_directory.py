@@ -5,6 +5,8 @@ import numpy as np
 import pickle
 import os
 
+import matplotlib.pyplot as plt
+
 import copy
 from optparse import OptionParser
 
@@ -17,7 +19,7 @@ else:
     OPENCV_VERSION = 2
     print 'Open CV 2'
 
-def create_median_gray_small_image_from_directory(directory, N=3, resize_factor=0.1):
+def create_median_gray_small_image_from_directory(directory, N=3, resize_factor=0.2):
     # N is the number of equidistant files to use for making the median
     file_list = mta_read.get_filenames(directory, '.jpg')
     imgs = []
@@ -30,7 +32,7 @@ def create_median_gray_small_image_from_directory(directory, N=3, resize_factor=
     median = np.median(imgs, axis=0)
     return median.astype(np.uint8)
 
-def find_fly_in_image(image, median, threshold=10, pixels_per_mm=10, min_fly_length_mm=1, max_fly_ecc=5):
+def find_fly_in_image(image, median, threshold=40, pixels_per_mm=10, min_fly_length_mm=1, max_fly_ecc=5):
     '''
     pixels_per_mm - after resize transformation
     '''
@@ -42,7 +44,7 @@ def find_fly_in_image(image, median, threshold=10, pixels_per_mm=10, min_fly_len
     threshed = cv2.morphologyEx(threshed,cv2.MORPH_OPEN, kernel, iterations = 1)
     
     kernel = np.ones((3,3), np.uint8)
-    threshed = cv2.dilate(threshed, kernel, iterations=1)
+    threshed = cv2.dilate(threshed, kernel, iterations=5)
     threshed = cv2.erode(threshed, kernel, iterations=2)
 
     # http://docs.opencv.org/trunk/doc/py_tutorials/py_imgproc/py_contours/py_contour_features/py_contour_features.html
@@ -67,7 +69,7 @@ def find_fly_in_image(image, median, threshold=10, pixels_per_mm=10, min_fly_len
 
 def find_flies_in_images(directory, 
                          resize_factor=0.2, 
-                         threshold=10, 
+                         threshold=40, 
                          pixels_per_mm=10, 
                          min_fly_length_mm=1, 
                          max_fly_ecc=5,
@@ -88,12 +90,9 @@ def find_flies_in_images(directory,
     flies = {}
     file_list = mta_read.get_filenames(directory, '.jpg')
     for file in file_list:
-        print file
         img = cv2.imread(file, cv2.CV_8UC1)
         small = cv2.resize(img, (0,0), fx=resize_factor, fy=resize_factor) 
     
-        print small.shape
-        print median.shape
         fly_ellipses = find_fly_in_image(small, 
                                          median, 
                                          threshold=threshold, 
@@ -116,8 +115,28 @@ def find_flies_in_images(directory,
         pickle.dump(flies, f)
         f.close()
 
+def show_fly_ellipse(path, filebasename):
+    filebasename = os.path.basename(filebasename)
+    file = os.path.join(path, filebasename)
+    img = cv2.imread(file, cv2.CV_8UC1)
+
+    fname = os.path.join(path, 'fly_ellipses_and_colors.pickle')
+    if not os.path.exists(fname):
+        raise ValueError('Please run find_flies_in_image_directory.find_flies_in_directory')
+    f = open(fname)
+    gphoto2_flies = pickle.load(f)
+    f.close()
+
+    for i in range(len(gphoto2_flies[filebasename])):
+        img = cv2.ellipse(img,gphoto2_flies[filebasename][i]['ellipse'],color=(0,255,0),thickness=20)
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+
+    ax.imshow(img)
+
 def calculate_hue_for_flies(path):
-    try:
+    try:    
         config = read_hdf5_file_to_pandas.load_config_from_path(path)
         s = config.identifiercode + '_' + 'gphoto2'
         gphoto2directory = os.path.join(config.path, s)
@@ -151,7 +170,7 @@ def calculate_hue_for_flies(path):
             zoom = gphoto2img[int(_l):int(_r), int(_b):int(_t), :]
 
 
-            zoom_hsv = cv2.cvtColor(zoom, cv2.COLOR_RGB2HSV)
+            zoom_hsv = cv2.cvtColor(zoom, cv2.COLOR_BGR2HSV)
             # http://docs.opencv.org/trunk/df/d9d/tutorial_py_colorspaces.html
 
             # ellipse mask
@@ -161,53 +180,45 @@ def calculate_hue_for_flies(path):
 
             # saturation mask
             mask_sat = copy.copy(zoom_hsv[:,:,1])
-            mask_sat = mask_sat>50
+            mask_sat = mask_sat>10
 
             # luminance mask
             mask_lum = copy.copy(zoom_hsv[:,:,2])
-            mask_lum = (mask_lum>50)*(mask_lum<220)
+            mask_lum = (mask_lum>10)*(mask_lum<240)
 
-            mask = mask_ellipse*mask_sat*mask_lum
+            mask = mask_ellipse#*mask_sat*mask_lum
             mask /= np.max(mask)
 
-            print np.sum(mask)
 
-            dbin = 5
-            bins_179 = np.arange(0,179,dbin)
-            #bins_255 = np.arange(0,255,5)
-            hist_hue, b = np.histogram(zoom_hsv[:,:,0], bins=bins_179, weights=mask, normed=True)
-            bins = bins_179[1:]-dbin/2.
-            primary_hue = np.mean(bins[hist_hue>np.max(hist_hue)*0.75])
 
-            hsv_color = np.uint8([[[primary_hue, 255, 255]]])
-            rgb_color = cv2.cvtColor(hsv_color, cv2.COLOR_HSV2RGB)[0][0]
-            #hist_sat, b = np.histogram(zoom_hsv[:,:,1], bins=bins_255, weights=mask[:,:,1])
-            #hist_lum, b = np.histogram(zoom_hsv[:,:,2], bins=bins_255, weights=mask[:,:,2])
 
             fly = {'ellipse': ellipse,
-                   'hue_actual': hist_hue,
-                   'hue_bins': bins,
-                   'rgb_color_peak': rgb_color.tolist()}
+                   'luminance': np.mean(zoom_hsv[:,:,2]*mask),
+                   #'hue_actual': hist_hue,
+                   #'hue_bins': bins,
+                   #'rgb_color_peak': rgb_color.tolist()}
+                }
 
             fly_ellipses_and_colors[os.path.basename(filename)].append(fly)
-            all_hues.append(hist_hue)
 
     # get hue relative to the baseline. useful for focusing on small differences relative to a common baseline
     # could try to cluster first, then get baseline based on selecting even number of flies from each cluster
     baseline_hue = np.mean(all_hues, axis=0).astype('float')
 
-    for filename, flies in fly_ellipses_and_colors.items():
-        for i, fly in enumerate(flies):
-            #hue = fly['hue_actual'].astype(float)
-            #hue_relative = hue - baseline_hue
-            #hue_relative -= np.min(hue_relative)
-            #hue_relative /= float(np.sum(hue_relative))
-            fly['hue_relative'] = fly['hue_actual']
+    if 0:
+        for filename, flies in fly_ellipses_and_colors.items():
+            for i, fly in enumerate(flies):
+                pass
+                #hue = fly['hue_actual'].astype(float)
+                #hue_relative = hue - baseline_hue
+                #hue_relative -= np.min(hue_relative)
+                #hue_relative /= float(np.sum(hue_relative))
+                #fly['hue_relative'] = hue_relative
 
-            #primary_hue = fly['hue_bins'][np.argmax(hue_relative)]
-            #hsv_color = np.uint8([[[primary_hue, 255, 255]]])
-            #rgb_color = cv2.cvtColor(hsv_color, cv2.COLOR_HSV2RGB)[0][0]
-            #fly['rgb_color_peak'] = rgb_color.tolist()
+                #primary_hue = fly['hue_bins'][np.argmax(hue_relative)]
+                #hsv_color = np.uint8([[[primary_hue, 255, 255]]])
+                #rgb_color = cv2.cvtColor(hsv_color, cv2.COLOR_HSV2RGB)[0][0]
+                #fly['rgb_color_peak'] = rgb_color.tolist()
 
     fname = os.path.join(gphoto2directory, 'fly_ellipses_and_colors.pickle')
     f = open(fname, 'w')
@@ -220,5 +231,5 @@ if __name__ == '__main__':
     parser.add_option('--path', type=str, default='none', help="option: path that points to directory of images")
     (options, args) = parser.parse_args()
 
-    #find_flies_in_images(options.path)
+    find_flies_in_images(options.path)
     calculate_hue_for_flies(options.path)

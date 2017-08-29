@@ -7,7 +7,7 @@ import rospy
 import os
 import time
 
-from std_msgs.msg import Float32MultiArray
+from std_msgs.msg import Float32MultiArray, String
 
 '''
 sudo apt-get install libgphoto2-dev
@@ -42,7 +42,9 @@ class GPhotoCamera:
         self.synchronize_camera_timestamp()
         
         self.subTrackedObjects = rospy.Subscriber('/multi_tracker/' + nodenum + '/' + topic, Float32MultiArray, self.gphoto_callback)
-        
+        self.pubNewImage = rospy.Publisher('/multi_tracker/' + str(self.nodenum) + '/gphoto2_images', String)
+
+
     def synchronize_camera_timestamp(self):
         def set_datetime(config):
             OK, date_config = gp.gp_widget_get_child_by_name(config, 'datetime')
@@ -91,6 +93,8 @@ class GPhotoCamera:
         gp.check_result(gp.gp_file_save(camera_file, target))
         #subprocess.call(['xdg-open', target])
         #gp.check_result(gp.gp_camera_exit(self.camera, self.context))
+
+        self.pubNewImage.publish(String(target))
 
         
     def Main(self):
