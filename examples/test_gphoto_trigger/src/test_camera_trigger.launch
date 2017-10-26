@@ -1,0 +1,11 @@
+<launch>
+
+# set up src and data directories and define prefix name
+<rosparam command="load" file="home_directory.yaml"/>
+<node name="set_exp_basename_1" pkg="multi_tracker" type="set_basename_and_path.py" output="screen" args="--nodenum=1" />
+
+<node name="republish_pref_obj_data" pkg="multi_tracker" type="republish_pref_obj_data.py" args="--simulate --rate=2 --nodenum=1" output="screen" />
+
+<node name="trigger_gphoto2_camera" pkg="indi_tracker" type="trigger_gphoto2_camera.py" args="--nodenum=1" output="screen" />
+
+</launch>
