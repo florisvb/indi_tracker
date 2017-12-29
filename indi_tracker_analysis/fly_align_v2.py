@@ -18,17 +18,18 @@ DO_ALIGNMENT = False
 N_STD_AWAY = 3
 
 
+
 def get_fly_roi(image_full, ellipse):
     r0 = int(ellipse[1][0])
     r1 = int(ellipse[1][1])
 
     r = int(np.max([r0, r1])*np.sqrt(2)/2.)
 
-    _l = np.max([0, ellipse[0][1]-r])
-    _r = np.min([image_full.shape[0], ellipse[0][1]+r])
+    _l = int(np.max([0, ellipse[0][1]-r]))
+    _r = int(np.min([image_full.shape[0], ellipse[0][1]+r]))
     _width = _r - _l
-    _b = np.max([0, ellipse[0][0]-r])
-    _t = np.min([image_full.shape[1], ellipse[0][0]+r])
+    _b = int(np.max([0, ellipse[0][0]-r]))
+    _t = int(np.min([image_full.shape[1], ellipse[0][0]+r]))
     _height = _t - _b
 
     zoom = copy.copy(image_full[_l:_r, _b:_t, :])
