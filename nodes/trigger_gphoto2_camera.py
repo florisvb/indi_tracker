@@ -34,6 +34,7 @@ class GPhotoCamera:
         rospy.init_node('gphoto2_' + nodenum)
         self.nodename = rospy.get_name().rstrip('/')
         self.nodenum = nodenum
+        self.triggers = 0
 
         #gp.check_result(gp.use_python_logging())
         self.context = gp.gp_context_new()
@@ -43,6 +44,7 @@ class GPhotoCamera:
         
         self.subTrackedObjects = rospy.Subscriber('/multi_tracker/' + nodenum + '/' + topic, Float32MultiArray, self.gphoto_callback)
         self.pubNewImage = rospy.Publisher('/multi_tracker/' + str(self.nodenum) + '/gphoto2_images', String)
+
 
 
     def synchronize_camera_timestamp(self):
@@ -74,28 +76,29 @@ class GPhotoCamera:
 
 
     def gphoto_callback(self, msg):
+        if self.triggers < 500: # max number of picturs to take
+        
+            file_path = gp.check_result(gp.gp_camera_capture(
+                self.camera, gp.GP_CAPTURE_IMAGE, self.context))
+            #print('Camera file path: {0}/{1}'.format(file_path.folder, file_path.name))
 
-        file_path = gp.check_result(gp.gp_camera_capture(
-            self.camera, gp.GP_CAPTURE_IMAGE, self.context))
-        print('Camera file path: {0}/{1}'.format(file_path.folder, file_path.name))
+            #print('Captured image')
+            t = rospy.Time.now()
+            time_base = time.strftime("%Y%m%d_%H%M%S_N" + self.nodenum, time.localtime())
+            #print time_base
+            name = time_base + '_' + str(t.secs) + '_' + str(t.nsecs) + '.jpg'
+            target = os.path.join(self.destination, name)
 
-        print('Captured image')
-        t = rospy.Time.now()
-        time_base = time.strftime("%Y%m%d_%H%M%S_N" + self.nodenum, time.localtime())
-        print time_base
-        name = time_base + '_' + str(t.secs) + '_' + str(t.nsecs) + '.jpg'
-        target = os.path.join(self.destination, name)
+            #print('Copying image to', target)
+            camera_file = gp.check_result(gp.gp_camera_file_get(
+                    self.camera, file_path.folder, file_path.name,
+                    gp.GP_FILE_TYPE_NORMAL, self.context))
+            gp.check_result(gp.gp_file_save(camera_file, target))
+            #subprocess.call(['xdg-open', target])
+            #gp.check_result(gp.gp_camera_exit(self.camera, self.context))
 
-        print('Copying image to', target)
-        camera_file = gp.check_result(gp.gp_camera_file_get(
-                self.camera, file_path.folder, file_path.name,
-                gp.GP_FILE_TYPE_NORMAL, self.context))
-        gp.check_result(gp.gp_file_save(camera_file, target))
-        #subprocess.call(['xdg-open', target])
-        #gp.check_result(gp.gp_camera_exit(self.camera, self.context))
-
-        self.pubNewImage.publish(String(target))
-
+            self.pubNewImage.publish(String(target))
+            self.triggers += 1
         
     def Main(self):
         while (not rospy.is_shutdown()):
