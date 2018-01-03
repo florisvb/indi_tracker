@@ -8,6 +8,8 @@ import os
 import matplotlib.pyplot as plt
 import matplotlib
 
+from scipy.stats import itemfreq
+
 import copy
 from optparse import OptionParser
 
@@ -120,7 +122,7 @@ class FlyImg(object):
         
         kernel = np.ones((3,3), np.uint8)
         threshed = cv2.dilate(threshed, kernel, iterations=5)
-        threshed = cv2.erode(threshed, kernel, iterations=2)
+        threshed = cv2.erode(threshed, kernel, iterations=3)
 
         # http://docs.opencv.org/trunk/doc/py_tutorials/py_imgproc/py_contours/py_contour_features/py_contour_features.html
         if OPENCV_VERSION == 2:
@@ -190,7 +192,7 @@ class FlyImg(object):
         # run load_rois_fly and load_rois_median first
         self.rois_isolated_fly = []
         for i in range(len(self.rois_fly)):
-            fly_c = self.remove_bg_from_fly_roi(self.rois_fly[i], self.rois_median[i])
+            fly_c = self.remove_bg_from_fly_roi(self.rois_fly[i], self.rois_median[i], self.fly_ellipses_large[i])
             self.rois_isolated_fly.append( fly_c )
 
     def show_rois(self, rois=None):
@@ -210,28 +212,53 @@ class FlyImg(object):
     def convert_bgr_to_rgb(self, img):
         return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-    def remove_bg_from_fly_roi(self, fly_roi, median_roi, threshold=40):
-        fly = cv2.cvtColor(fly_roi, cv2.COLOR_BGR2GRAY) 
-        med = cv2.cvtColor(median_roi, cv2.COLOR_BGR2GRAY) 
+    def remove_bg_from_fly_roi(self, fly_roi, median_roi, ellipse_large, threshold=40):
 
-        absdiff = cv2.absdiff(fly, med)
-        retval, threshed = cv2.threshold(absdiff, threshold, 255, 0)
+        # draw ellipse mask
+        actual_width = np.max(fly_roi.shape) # won't work for corners
+        ellipse_large_centered = (( int(actual_width/2.), int(actual_width/2.)),
+                                    ellipse_large[1], ellipse_large[2])
+        mask = np.zeros_like(fly_roi)
+        mask = cv2.ellipse(mask,ellipse_large_centered,[1,1,1],-1)
+        inverted_mask = 1-mask
 
-        kern_d = 7
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kern_d,kern_d))
-        threshed = cv2.morphologyEx(threshed,cv2.MORPH_OPEN, kernel, iterations = 1)
+        # get most common color in background
+        median_background = get_dominant_color(median_roi, 2)
+        background = np.ones_like(fly_roi)*median_background
 
-        kernel = np.ones((3,3), np.uint8)
-        threshed = cv2.erode(threshed, kernel, iterations=3)
-        threshed = cv2.dilate(threshed, kernel, iterations=5)
-        
+        # isolate the fly
+        isolated_fly = fly_roi*mask + inverted_mask*background
 
-        bg_idx = ~(threshed.astype(bool))
+        #####
 
-        fly_c = copy.copy(fly_roi)
-        fly_c[bg_idx] = 0
+        #gray_fly = cv2.cvtColor(isolated_fly, cv2.COLOR_BGR2GRAY)
+        #gray_bg = cv2.cvtColor(median_roi, cv2.COLOR_BGR2GRAY)
 
-        return fly_c
+        absdiff = cv2.absdiff(isolated_fly, median_roi)
+        retval, threshed = cv2.threshold(absdiff, 10, 255, 0)
+
+        threshed = np.mean(threshed, axis=2)
+
+        isolated_fly[np.where(threshed==0)] = median_background
+
+        return isolated_fly
+
+def get_dominant_color(img, n_colors):
+    arr = np.float32(img)
+    pixels = arr.reshape((-1, 3))
+
+    n_colors = 2
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 200, .1)
+    flags = cv2.KMEANS_RANDOM_CENTERS
+    _, labels, centroids = cv2.kmeans(pixels, n_colors, None, criteria, 10, flags)
+
+    palette = np.uint8(centroids)
+    #quantized = palette[labels.flatten()]
+    #quantized = quantized.reshape(img.shape)
+
+    dominant_color = palette[np.argmax(itemfreq(labels)[:, -1])]
+
+    return dominant_color
 
 def create_median_gray_small_image_from_directory(directory, N=10):
     # N is the number of equidistant files to use for making the median
@@ -324,10 +351,40 @@ def compile_flyimg_list_to_dict(flyimg_list):
     return flyimg_dict
 
 def load_flyimg_dict_from_path(path):
-    flyimg_path = os.path.join(path, 'flyimgs')
+    if 'flyimgs' not in path:
+        flyimg_path = os.path.join(path, 'flyimgs')
+    else:
+        flyimg_path = path
     flyimgs = load_all_flyimgs(flyimg_path)
     flyimg_dict = compile_flyimg_list_to_dict(flyimgs)
     return flyimg_dict
+
+def save_images_from_flyimgs(path):
+    flyimg_dict = load_flyimg_dict_from_path(path)
+
+    def write_images(basename, roi, bkgrd, isolated):
+        filename = basename.split('.')[0] + '_' + str(i) + '.jpg'
+        filename = os.path.join( os.path.join(path, 'rois'), filename)
+        cv2.imwrite(filename, roi)
+
+        filename = basename.split('.')[0] + '_' + str(i) + '.jpg'
+        filename = os.path.join( os.path.join(path, 'bkgrds'), filename)
+        cv2.imwrite(filename, bkgrd)
+
+        filename = basename.split('.')[0] + '_' + str(i) + '.jpg'
+        filename = os.path.join( os.path.join(path, 'isolated'), filename)
+        print filename
+        cv2.imwrite(filename, isolated)
+
+        return filename
+
+    results = []
+    for flyimg in flyimg_dict.values():
+        flyimg.load_rois_isolated_fly()
+        for i, roi in enumerate(flyimg.rois_fly): 
+            queue = dask.delayed(write_images)(flyimg.filename, roi, flyimg.rois_median[i], flyimg.rois_isolated_fly[i])
+            results.append(queue)
+    results = dask.compute(*results)
 
 
 if __name__ == '__main__':
