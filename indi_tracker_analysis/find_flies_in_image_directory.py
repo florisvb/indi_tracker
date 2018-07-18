@@ -303,8 +303,11 @@ def find_flies_and_load_rois(directory, file, pixels_per_mm, median, median_larg
     flyimg.load_rois_isolated_fly()
     flyimg.clear_images()
 
-    d = '/media/caveman/FastData/all_colors/flyimgs'
-    fname = os.path.join(d, os.path.basename(file).split('.')[0] + '_flyimg.pickle')
+    new_directory = os.path.join(os.path.dirname(directory), 'flyimgs')
+    if not os.path.exists(new_directory):
+    	os.mkdir(new_directory)
+
+    fname = os.path.join(new_directory, os.path.basename(file).split('.')[0] + '_flyimg.pickle')
     print fname
     print
     f = open(fname, 'w')
