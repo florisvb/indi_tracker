@@ -2,8 +2,12 @@ import os
 import gphoto2 as gp
 from optparse import OptionParser
 
+import indi_tracker_analysis.gphoto_utils as gphoto_utils
+
 '''
 READ ME
+
+Install indi_tracker_analysis first.
 
 This script is helpful for testing your gphoto cameras. Attach all cameras. Run script. 
 
@@ -15,47 +19,6 @@ on the USB address that is printed out at the start of the script.
 
 '''
 
-def get_list_of_availale_cameras():
-    print('================')
-    camera_list = []
-    for name, addr in gp.check_result(gp.gp_camera_autodetect()):
-        camera_list.append((name, addr))
-    if not camera_list:
-        print('No camera detected')
-    return camera_list
-
-def list_camera_serial_numbers():
-    camera_list = get_list_of_availale_cameras()
-    if len(camera_list) == 0:
-        return
-
-    addresses = [camera_info[1] for camera_info in camera_list]
-    camera_types = [camera_info[0] for camera_info in camera_list]
-
-    serial_numbers = []
-    serial_to_address = {}
-    for i, addr in enumerate(addresses):
-        camera = gp.Camera()
-        port_info_list = gp.PortInfoList()
-        port_info_list.load()
-        idx = port_info_list.lookup_path(addr)
-        camera.set_port_info(port_info_list[idx])
-        camera.init()
-        txt = str(camera.get_summary())
-        serial = txt.split('Serial Number: ')[1].split('\n')[0]
-        serial_numbers.append(serial)
-        serial_to_address[serial_numbers[i]] = addresses[i]
-
-    print('Attached Cameras:')
-    print('================')
-    for i in range(len(addresses)):
-        print('Camera ' + str(i+1))
-        print('      Serial number: ' + serial_numbers[i])
-        print('      Make and Model: ' + camera_types[i])
-        print('      USB Address: ' + addresses[i])
-
-    return serial_to_address
-
 #####################################################################################################
     
 if __name__ == '__main__':
@@ -65,7 +28,7 @@ if __name__ == '__main__':
     (options, args) = parser.parse_args()
 
     # check all attached cameras
-    serial_to_address = list_camera_serial_numbers()
+    serial_to_address = gphoto_utils.list_camera_serial_numbers()
     if len(serial_to_address) == 0:
         raise ValueError('No cameras!')
 
@@ -86,13 +49,7 @@ if __name__ == '__main__':
     destination = os.path.join(destination, 'test_image.jpg')
 
     # make a camera object chosen serial number
-    addr = serial_to_address[serial]
-    camera = gp.Camera()
-    port_info_list = gp.PortInfoList()
-    port_info_list.load()
-    idx = port_info_list.lookup_path(addr)
-    camera.set_port_info(port_info_list[idx])
-    camera.init()
+    gphoto_utils.get_camera(serial, serial_to_address)
     txt = str(camera.get_summary())
     serial = txt.split('Serial Number: ')[1].split('\n')[0]
     print('')
@@ -105,9 +62,5 @@ if __name__ == '__main__':
     print('Capture')
     print('=======')
     print('Taking the photo and saving to disk')
-    file_path = gp.check_result(gp.gp_camera_capture(camera, gp.GP_CAPTURE_IMAGE))
-    camera_file = gp.check_result(gp.gp_camera_file_get(
-            camera, file_path.folder, file_path.name,
-            gp.GP_FILE_TYPE_NORMAL))
-    print('Saving test image to: ' + destination)
-    gp.check_result(gp.gp_file_save(camera_file, destination))
+    gphoto_utils.trigger_capture_and_save(camera, destination)
+    print('Saved test image to: ' + destination)
