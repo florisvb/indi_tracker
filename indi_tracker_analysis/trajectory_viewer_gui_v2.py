@@ -287,8 +287,15 @@ class QTrajectory(TemplateBaseClass):
                 notes.append(str(note))
         return notes
     
-    def save_annotation(self):
+    def save_annotation(self, key=None):
+        if key == None or key == False:
+            keys_to_annotate = self.object_id_numbers
+        else:
+            keys_to_annotate = [key]
+
+        print 'Saving annotation for: ', keys_to_annotate
         notes = self.get_annotations_from_checked_boxes()
+        notes = list(set(notes)) # make sure all notes are unique
 
         print(notes)
         self.annotations = os.path.join(self.path, 'annotations.pickle')
@@ -300,8 +307,10 @@ class QTrajectory(TemplateBaseClass):
             f = open(self.annotations, 'w+')
             f.close()
             data = {}
+
+
         
-        for key in self.object_id_numbers:
+        for key in keys_to_annotate:
             if key not in data.keys():
                 data.setdefault(key, {'notes': [], 'related_objids': []})
             data[key]['notes'] = notes
@@ -329,12 +338,17 @@ class QTrajectory(TemplateBaseClass):
             f = open(self.annotations, 'r+')
             data = pickle.load(f)
             f.close()
+        else:
+            data = {}
             
+        notes = []
         for key in self.object_id_numbers:
-            annotation = data[key]
-            if len(self.object_id_numbers) > 1:
-                raise ValueError('Load Annotations only works with single trajectories selected')
-            for i, note in enumerate(annotation['notes']):
+            if key in data.keys():
+                annotation = data[key]
+                notes.extend(annotation['notes'])
+
+        if len(notes) > 0:
+            for i, note in enumerate(notes):
                 checkbox = self.ui.__getattribute__('annotated_checkbox_' + str(i+1))
                 checkbox.setChecked(True)
                 textbox = self.ui.__getattribute__('annotated_text_' + str(i+1))
@@ -531,6 +545,8 @@ class QTrajectory(TemplateBaseClass):
             self.delete_object_id_number(item.key)
         elif self.add_data:
             self.add_data_to_trajecs_to_join()
+
+        self.load_annotations()
             
     def add_data_to_trajecs_to_join(self):
         self.data_to_add.append([self.current_time_epoch, self.mouse_position[0], self.mouse_position[1]])
@@ -584,6 +600,11 @@ class QTrajectory(TemplateBaseClass):
                         'data_to_add': self.data_to_add,
                         'new_objid': self.get_new_unique_objid()}
         print instructions
+
+        # copy over annotations
+        self.load_annotations()
+        self.save_annotation(instructions['new_objid'])
+
         self.save_delete_cut_join_instructions(instructions)
         
         self.object_id_numbers = []
@@ -595,6 +616,8 @@ class QTrajectory(TemplateBaseClass):
         self.pd = mta.read_hdf5_file_to_pandas.delete_cut_join_trajectories_according_to_instructions(self.pd, instructions, interpolate_joined_trajectories=True)
         self.draw_trajectories()
         self.draw_timeseries_vlines_for_interesting_timepoints()
+
+
         
         print 'Reset object id list - you may collect a new selection of objects now'
         
@@ -736,7 +759,8 @@ class QTrajectory(TemplateBaseClass):
                 zoom = flyimg.convert_bgr_to_rgb(flyimg.rois_fly[i]) 
                 actual_width = np.max(zoom.shape) # won't work for corners
                 ellipse_large_centered = (( int(actual_width/2.), int(actual_width/2.)),
-                                            ellipse_large[1], ellipse_large[2])
+                                            (int(ellipse_large[1][0]*1.2), int(ellipse_large[1][1]*1.2)),
+                                            ellipse_large[2])
                 zoom = cv2.ellipse(zoom,ellipse_large_centered,rgb_color,20)
 
                 zoom = pg.ImageItem(zoom, autoLevels=False)
