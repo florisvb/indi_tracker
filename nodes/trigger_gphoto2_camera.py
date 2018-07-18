@@ -12,10 +12,12 @@ from std_msgs.msg import Float32MultiArray, String
 '''
 sudo apt-get install libgphoto2-dev
 sudo pip install -v gphoto2 (takes a while, be patient)
+
+To test, you can use: rosrun multi_tracker republish_pref_obj_data.py --rate=0.1 --simulate
 '''
 import gphoto2 as gp
 
-import gphoto_utils
+import indi_tracker_analysis.gphoto_utils as gphoto_utils
             
 # The main tracking class, a ROS node
 class GPhotoCamera:
@@ -43,7 +45,7 @@ class GPhotoCamera:
         self.synchronize_camera_timestamp()
         
         self.subTrackedObjects = rospy.Subscriber('/multi_tracker/' + nodenum + '/' + topic, Float32MultiArray, self.gphoto_callback)
-        self.pubNewImage = rospy.Publisher('/multi_tracker/' + str(self.nodenum) + '/gphoto2_images', String)
+        self.pubNewImage = rospy.Publisher('/multi_tracker/' + str(self.nodenum) + '/gphoto2_images', String, queue_size=5)
 
 
 
@@ -85,7 +87,7 @@ class GPhotoCamera:
 
             gphoto_utils.trigger_capture_and_save(self.camera, destination)
 
-            self.pubNewImage.publish(String(target))
+            self.pubNewImage.publish(String(destination))
             self.triggers += 1
         
     def Main(self):

@@ -66,7 +66,13 @@ def get_camera(serial, serial_to_address=None):
         print('Using first attached camera!')
         serial = serial_to_address.keys()[0]
 
-    print('Using camera with this serial: ' + serial)
+    print('')
+    print('===============')
+    print('Selected camera:')
+    print('===============')
+    print('Serial Number: ' + serial)
+    print('===============')
+    print('')
 
     addr = serial_to_address[serial]
     camera = gp.Camera()

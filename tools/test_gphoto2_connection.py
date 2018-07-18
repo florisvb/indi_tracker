@@ -49,7 +49,7 @@ if __name__ == '__main__':
     destination = os.path.join(destination, 'test_image.jpg')
 
     # make a camera object chosen serial number
-    gphoto_utils.get_camera(serial, serial_to_address)
+    camera = gphoto_utils.get_camera(serial, serial_to_address)
     txt = str(camera.get_summary())
     serial = txt.split('Serial Number: ')[1].split('\n')[0]
     print('')
