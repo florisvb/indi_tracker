@@ -1,4 +1,5 @@
 from multi_tracker_analysis import read_hdf5_file_to_pandas as mta_read
+import rotate_fly_in_roi
 
 import cv2
 import numpy as np
@@ -188,11 +189,12 @@ class FlyImg(object):
             zoom = self.load_roi(median, fly_ellipse, width=width)
             self.rois_median.append( copy.deepcopy(zoom) )
 
-    def load_rois_isolated_fly(self):
+    def load_rois_isolated_fly(self, rotate=True):
         # run load_rois_fly and load_rois_median first
         self.rois_isolated_fly = []
         for i in range(len(self.rois_fly)):
             fly_c = self.remove_bg_from_fly_roi(self.rois_fly[i], self.rois_median[i], self.fly_ellipses_large[i])
+            fly_c = rotate_fly_in_roi.rough_align_fly_in_roi_to_vertical_position(fly_c, self.fly_ellipses_large[i])
             self.rois_isolated_fly.append( fly_c )
 
     def show_rois(self, rois=None):
@@ -400,6 +402,8 @@ if __name__ == '__main__':
         width = options.width
 
     flyimgs = extract_all_flyimgs(options.path, pixels_per_mm=options.ppm, width=width)
+
+    
 
     #destination = os.path.join(options.path, 'flyimgs.pickle')
     #save_flyimgs(flyimages, destination)
