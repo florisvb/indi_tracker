@@ -752,16 +752,20 @@ class QTrajectory(TemplateBaseClass):
             self.gphoto2_fly_ellipses_to_draw_on_tracker.append(fly)
 
             # ellipse mask
-            gphoto2img = cv2.ellipse(gphoto2img,ellipse_large,rgb_color,20)
+            enlarged_ellipse_large = (( ellipse_large[0][0], ellipse_large[0][1]),
+                                            (int(ellipse_large[1][0]*2), int(ellipse_large[1][1]*2)),
+                                            ellipse_large[2])
+
+            gphoto2img = cv2.ellipse(gphoto2img,enlarged_ellipse_large,rgb_color,5)
             last_fly = i
 
             if i < len(img_boxes):
                 zoom = flyimg.convert_bgr_to_rgb(flyimg.rois_fly[i]) 
                 actual_width = np.max(zoom.shape) # won't work for corners
                 ellipse_large_centered = (( int(actual_width/2.), int(actual_width/2.)),
-                                            (int(ellipse_large[1][0]*1.2), int(ellipse_large[1][1]*1.2)),
-                                            ellipse_large[2])
-                zoom = cv2.ellipse(zoom,ellipse_large_centered,rgb_color,20)
+                                            (int(enlarged_ellipse_large[1][0]), int(enlarged_ellipse_large[1][1])),
+                                            enlarged_ellipse_large[2])
+                zoom = cv2.ellipse(zoom,ellipse_large_centered,rgb_color,5)
 
                 zoom = pg.ImageItem(zoom, autoLevels=False)
                 img_boxes[i].clear()
