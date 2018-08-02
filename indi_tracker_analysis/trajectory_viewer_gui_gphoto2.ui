@@ -746,8 +746,8 @@
    <widget class="QPushButton" name="save_colors">
     <property name="geometry">
      <rect>
-      <x>20</x>
-      <y>1000</y>
+      <x>30</x>
+      <y>1760</y>
       <width>111</width>
       <height>27</height>
      </rect>
@@ -764,8 +764,8 @@
    <widget class="QPushButton" name="get_original_objid">
     <property name="geometry">
      <rect>
-      <x>20</x>
-      <y>1050</y>
+      <x>30</x>
+      <y>1810</y>
       <width>111</width>
       <height>27</height>
      </rect>
@@ -785,8 +785,8 @@
    <widget class="QPlainTextEdit" name="qttext_show_original_objid">
     <property name="geometry">
      <rect>
-      <x>20</x>
-      <y>1080</y>
+      <x>30</x>
+      <y>1840</y>
       <width>111</width>
       <height>51</height>
      </rect>
@@ -796,7 +796,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>970</y>
+      <y>960</y>
       <width>1491</width>
       <height>20</height>
      </rect>
@@ -809,7 +809,7 @@
     <property name="geometry">
      <rect>
       <x>260</x>
-      <y>1020</y>
+      <y>990</y>
       <width>1241</width>
       <height>71</height>
      </rect>
@@ -859,7 +859,7 @@
     <property name="geometry">
      <rect>
       <x>260</x>
-      <y>1110</y>
+      <y>1080</y>
       <width>1241</width>
       <height>791</height>
      </rect>
@@ -883,6 +883,32 @@
       <width>441</width>
       <height>441</height>
      </rect>
+    </property>
+   </widget>
+   <widget class="QPlainTextEdit" name="qttext_time_range">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>1020</y>
+      <width>241</width>
+      <height>91</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_5">
+    <property name="geometry">
+     <rect>
+      <x>60</x>
+      <y>980</y>
+      <width>141</width>
+      <height>41</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">text-align: left; padding-left: 10px</string>
+    </property>
+    <property name="text">
+     <string>Time range</string>
     </property>
    </widget>
   </widget>

@@ -65,6 +65,13 @@ WindowTemplate, TemplateBaseClass = pg.Qt.loadUiType(uiFile)
 def get_random_color():
     color = (np.random.randint(0,255), np.random.randint(0,255), np.random.randint(0,255))
     return color
+
+def convert_identifier_code_to_epoch_time(identifiercode):
+    ymd, hms, n = identifiercode.split('_')
+    strt = ymd + '_' + hms
+    t = time.strptime(strt, "%Y%m%d_%H%M%S")
+    epoch_time = time.mktime(t) # assuming PDT / PST
+    return epoch_time
   
 class QTrajectory(TemplateBaseClass):
     def __init__(self, data_filename, bgimg, delta_video_filename, load_original=False, clickable_width=6, draw_interesting_time_points=True, draw_config_function=False):
@@ -103,6 +110,7 @@ class QTrajectory(TemplateBaseClass):
         self.ui.annotated_color_checkbox.stateChanged.connect(self.toggle_annotated_colors)
         self.ui.annotated_hide_checkbox.stateChanged.connect(self.toggle_annotated_hide)
         self.ui.save_colors.clicked.connect(self.save_trajec_colors)
+
 
         self.ui.get_original_objid.clicked.connect(self.trajec_get_original_objid)
         self.ui.save_colors.clicked.connect(self.save_trajec_colors)
@@ -795,6 +803,9 @@ class QTrajectory(TemplateBaseClass):
 
         
     def draw_trajectories(self):
+        tstart = self.start_time_epoch
+        self.ui.qttext_time_range.setPlainText(str(self.troi[0]-tstart) + '\nto\n' + str(self.troi[-1]-tstart) ) 
+
         for plotted_trace in self.plotted_traces:
             self.ui.qtplot_trajectory.removeItem(plotted_trace)
         self.ui.qtplot_trajectory.clear()
@@ -883,6 +894,7 @@ class QTrajectory(TemplateBaseClass):
             self.original_pd = mta.read_hdf5_file_to_pandas.load_data_as_pandas_dataframe_from_hdf5_file(self.data_filename)
         print 'loading data'
         self.pd, self.config = mta.read_hdf5_file_to_pandas.load_and_preprocess_data(self.data_filename)
+        self.start_time_epoch = convert_identifier_code_to_epoch_time(self.config.identifiercode)
         self.path = self.config.path
         self.dataset = read_hdf5_file_to_pandas.Dataset(self.pd)
         filename = os.path.join(self.path, 'delete_cut_join_instructions.pickle')
