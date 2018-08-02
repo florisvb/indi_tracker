@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>2091</width>
-    <height>1207</height>
+    <width>2500</width>
+    <height>2000</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -19,7 +19,7 @@
      <rect>
       <x>260</x>
       <y>0</y>
-      <width>1091</width>
+      <width>1241</width>
       <height>851</height>
      </rect>
     </property>
@@ -29,7 +29,7 @@
      <rect>
       <x>260</x>
       <y>865</y>
-      <width>1091</width>
+      <width>1241</width>
       <height>91</height>
      </rect>
     </property>
@@ -746,9 +746,9 @@
    <widget class="QPushButton" name="save_colors">
     <property name="geometry">
      <rect>
-      <x>1370</x>
-      <y>10</y>
-      <width>101</width>
+      <x>20</x>
+      <y>1000</y>
+      <width>111</width>
       <height>27</height>
      </rect>
     </property>
@@ -764,9 +764,9 @@
    <widget class="QPushButton" name="get_original_objid">
     <property name="geometry">
      <rect>
-      <x>1480</x>
-      <y>10</y>
-      <width>101</width>
+      <x>20</x>
+      <y>1050</y>
+      <width>111</width>
       <height>27</height>
      </rect>
     </property>
@@ -785,19 +785,19 @@
    <widget class="QPlainTextEdit" name="qttext_show_original_objid">
     <property name="geometry">
      <rect>
-      <x>1590</x>
-      <y>10</y>
-      <width>101</width>
-      <height>31</height>
+      <x>20</x>
+      <y>1080</y>
+      <width>111</width>
+      <height>51</height>
      </rect>
     </property>
    </widget>
    <widget class="Line" name="line_6">
     <property name="geometry">
      <rect>
-      <x>1370</x>
-      <y>50</y>
-      <width>411</width>
+      <x>10</x>
+      <y>970</y>
+      <width>1491</width>
       <height>20</height>
      </rect>
     </property>
@@ -809,79 +809,79 @@
     <property name="geometry">
      <rect>
       <x>260</x>
-      <y>970</y>
-      <width>1091</width>
-      <height>41</height>
+      <y>1020</y>
+      <width>1241</width>
+      <height>71</height>
      </rect>
     </property>
    </widget>
    <widget class="PlotWidget" name="qtplot_gphoto2_flyA_img">
     <property name="geometry">
      <rect>
-      <x>1370</x>
-      <y>330</y>
-      <width>201</width>
-      <height>201</height>
+      <x>1540</x>
+      <y>20</y>
+      <width>461</width>
+      <height>411</height>
      </rect>
     </property>
    </widget>
    <widget class="PlotWidget" name="qtplot_gphoto2_flyB_img">
     <property name="geometry">
      <rect>
-      <x>1580</x>
-      <y>330</y>
-      <width>201</width>
-      <height>201</height>
+      <x>2020</x>
+      <y>20</y>
+      <width>441</width>
+      <height>411</height>
      </rect>
     </property>
    </widget>
    <widget class="PlotWidget" name="qtplot_gphoto2_flyC_img">
     <property name="geometry">
      <rect>
-      <x>1370</x>
-      <y>540</y>
-      <width>201</width>
-      <height>201</height>
+      <x>1540</x>
+      <y>450</y>
+      <width>461</width>
+      <height>441</height>
      </rect>
     </property>
    </widget>
    <widget class="PlotWidget" name="qtplot_gphoto2_flyD_img">
     <property name="geometry">
      <rect>
-      <x>1580</x>
-      <y>540</y>
-      <width>201</width>
-      <height>201</height>
+      <x>2020</x>
+      <y>450</y>
+      <width>441</width>
+      <height>441</height>
      </rect>
     </property>
    </widget>
    <widget class="PlotWidget" name="qtplot_gphoto2image">
     <property name="geometry">
      <rect>
-      <x>1370</x>
-      <y>70</y>
-      <width>411</width>
-      <height>241</height>
+      <x>260</x>
+      <y>1110</y>
+      <width>1241</width>
+      <height>791</height>
      </rect>
     </property>
    </widget>
    <widget class="PlotWidget" name="qtplot_gphoto2_flyE_img">
     <property name="geometry">
      <rect>
-      <x>1370</x>
-      <y>750</y>
-      <width>201</width>
-      <height>201</height>
+      <x>1540</x>
+      <y>910</y>
+      <width>461</width>
+      <height>441</height>
      </rect>
     </property>
    </widget>
    <widget class="PlotWidget" name="qtplot_gphoto2_flyF_img">
     <property name="geometry">
      <rect>
-      <x>1580</x>
-      <y>750</y>
-      <width>201</width>
-      <height>201</height>
+      <x>2020</x>
+      <y>910</y>
+      <width>441</width>
+      <height>441</height>
      </rect>
     </property>
    </widget>
@@ -891,7 +891,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>2091</width>
+     <width>2500</width>
      <height>33</height>
     </rect>
    </property>
