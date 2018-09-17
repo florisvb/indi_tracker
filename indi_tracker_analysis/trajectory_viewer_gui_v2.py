@@ -389,6 +389,7 @@ class QTrajectory(TemplateBaseClass):
         f = open(filename, 'r+')
         pickle.dump(data, f)
         f.close()
+        time.sleep(1)
         self.load_data()
         self.draw_trajectories()
         self.draw_timeseries_vlines_for_interesting_timepoints()
@@ -598,7 +599,7 @@ class QTrajectory(TemplateBaseClass):
 
         # update gui
         self.pd = mta.read_hdf5_file_to_pandas.delete_cut_join_trajectories_according_to_instructions(self.pd, instructions, interpolate_joined_trajectories=True)
-        self.draw_trajectories()
+        self.draw_trajectories(cut=True)
         self.draw_timeseries_vlines_for_interesting_timepoints()
         
     def trajec_join_save(self):
@@ -802,18 +803,25 @@ class QTrajectory(TemplateBaseClass):
         self.img = pg.ImageItem(img, autoLevels=False)
 
         
-    def draw_trajectories(self):
+    def draw_trajectories(self, cut=False):
         tstart = self.start_time_epoch
         self.ui.qttext_time_range.setPlainText(str(self.troi[0]-tstart) + '\nto\n' + str(self.troi[-1]-tstart) ) 
 
         for plotted_trace in self.plotted_traces:
-            self.ui.qtplot_trajectory.removeItem(plotted_trace)
+            try:
+                self.ui.qtplot_trajectory.removeItem(plotted_trace)
+            except:
+                pass # item probably does not exist anymore
         self.ui.qtplot_trajectory.clear()
-                
+
+        
+        
         pd_subset = mta.data_slicing.get_data_in_epoch_timerange(self.pd, self.troi)
         self.dataset = read_hdf5_file_to_pandas.Dataset(self.pd)
         
         self.init_bg_image()
+
+
         
         # plot a heatmap of the trajectories, for error checking
         h = mta.plot.get_heatmap(pd_subset, self.binsy, self.binsx, position_x='position_y', position_y='position_x', position_z='position_z', position_z_slice=None)
@@ -834,9 +842,26 @@ class QTrajectory(TemplateBaseClass):
         self.ui.qtplot_trajectory.addItem(self.crosshair_vLine, ignoreBounds=True)
         self.ui.qtplot_trajectory.addItem(self.crosshair_hLine, ignoreBounds=True)
         
+        #if cut:
+        #    return
+
         keys = np.unique(pd_subset.objid.values)
-        self.plotted_traces_keys = []
+        try:
+            _ = self.old_plotted_traces
+        except:
+            self.old_plotted_traces = []
+        try:
+            _ = self.plotted_traces
+        except:
+            _ = None
+        if _ is not None:
+            for curve in self.plotted_traces:
+                self.ui.qtplot_trajectory.removeItem(curve)
+                self.old_plotted_traces.append(curve) # this is horribly inefficient, but otherwise objects get deleted and that causes a crash
+
         self.plotted_traces = []
+        self.plotted_traces_keys = []
+
         if len(keys) < 100:
             for key in keys:
                 trajec = self.dataset.trajec(key)
@@ -863,18 +888,24 @@ class QTrajectory(TemplateBaseClass):
                         color = (0,0,0,0)
                         width = 1
                 pen = pg.mkPen(color, width=width)  
+
                 plotted_trace = self.ui.qtplot_trajectory.plot(trajec.position_y[first_time_index:last_time_index], trajec.position_x[first_time_index:last_time_index], pen=pen) 
                 self.plotted_traces.append(plotted_trace)
                 self.plotted_traces_keys.append(key)
                 
             for i, key in enumerate(self.plotted_traces_keys):
+                print key
                 self.plotted_traces[i].curve.setClickable(True, width=self.clickable_width)
                 self.plotted_traces[i].curve.key = key
                 self.plotted_traces[i].curve.sigClicked.connect(self.trace_clicked)
         
+
+
+
         self.draw_data_to_add()
         self.draw_vlines_for_selected_trajecs()
         self.draw_gphoto2_flies_on_tracker()
+        
         #self.save_trajec_color_width_dicts()
     
     def draw_data_to_add(self):
