@@ -773,16 +773,20 @@ class QTrajectory(TemplateBaseClass):
 
             if i < len(img_boxes):
                 zoom = flyimg.convert_bgr_to_rgb(flyimg.rois_fly[i]) 
-                actual_width = np.max(zoom.shape) # won't work for corners
-                ellipse_large_centered = (( int(actual_width/2.), int(actual_width/2.)),
-                                            (int(enlarged_ellipse_large[1][0]), int(enlarged_ellipse_large[1][1])),
-                                            enlarged_ellipse_large[2])
-                zoom = cv2.ellipse(zoom,ellipse_large_centered,rgb_color,5)
+                try:
+                    actual_width = np.max(zoom.shape) # won't work for corners
+                    ellipse_large_centered = (( int(actual_width/2.), int(actual_width/2.)),
+                                                (int(enlarged_ellipse_large[1][0]), int(enlarged_ellipse_large[1][1])),
+                                                enlarged_ellipse_large[2])
+                    zoom = cv2.ellipse(zoom,ellipse_large_centered,rgb_color,5)
 
-                zoom = pg.ImageItem(zoom, autoLevels=False)
-                img_boxes[i].clear()
-                img_boxes[i].addItem(zoom)
-
+                    zoom = pg.ImageItem(zoom, autoLevels=False)
+                    img_boxes[i].clear()
+                    img_boxes[i].addItem(zoom)
+                except:
+                    print('Failed to get zoomed fly')
+                    pass
+                    
         for j in range(last_fly+1, len(img_boxes)):
             img_boxes[j].clear()
 
@@ -1058,6 +1062,9 @@ class QTrajectory(TemplateBaseClass):
         print "mencoder 'mf://*.jpg' -mf type=jpg:fps=30 -ovc x264 -x264encopts preset=slow:tune=film:crf=22 -oac copy -o animation.mp4"
         print "might need: https://www.faqforge.com/linux/how-to-install-ffmpeg-on-ubuntu-14-04/"
         print ''
+        print '  or  '
+        print "ffmpeg -n -i '"'animation_%04d.jpg'"' animation.m4v"
+        print ' ^ that one is Mac compatible'
     def get_next_reconstructed_image(self):
         self.current_frame += self.skip_frames
         if self.current_frame >= len(self.image_sequence)-1:
