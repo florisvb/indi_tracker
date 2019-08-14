@@ -300,7 +300,7 @@ def find_flies_and_load_rois(directory, file, pixels_per_mm, median, median_larg
     flyimg.find_flies(median)
     flyimg.load_rois_fly(width=250)
     flyimg.load_rois_median(median_large, width=250)
-    flyimg.load_rois_isolated_fly()
+    #flyimg.load_rois_isolated_fly()
     flyimg.clear_images()
 
     new_directory = os.path.join(os.path.dirname(directory), 'flyimgs')

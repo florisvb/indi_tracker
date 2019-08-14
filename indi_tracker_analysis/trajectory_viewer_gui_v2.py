@@ -55,9 +55,9 @@ screen_height = screen.get_height()
 
 # check screen size - if "small" screen use smaller ui
 path = os.path.dirname(os.path.abspath(__file__))
-if screen_height < 900:
+if screen_height < 4000:
     #uiFile = os.path.join(path, 'trajectory_viewer_small_screens.ui')
-    uiFile = os.path.join(path, 'trajectory_viewer_gui_gphoto2_small.ui')
+    uiFile = os.path.join(path, 'trajectory_viewer_gui_gphoto2_1920.ui')
     SMALL = True
 else:
     uiFile = os.path.join(path, 'trajectory_viewer_gui_gphoto2.ui')
