@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1920</width>
-    <height>1080</height>
+    <width>1894</width>
+    <height>1073</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -885,14 +885,40 @@
      </rect>
     </property>
    </widget>
+   <widget class="QCheckBox" name="annotated_checkbox_4">
+    <property name="geometry">
+     <rect>
+      <x>1260</x>
+      <y>1400</y>
+      <width>171</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
+   <widget class="QPlainTextEdit" name="annotated_text_4">
+    <property name="geometry">
+     <rect>
+      <x>1280</x>
+      <y>1400</y>
+      <width>161</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="plainText">
+     <string/>
+    </property>
+   </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1920</width>
-     <height>27</height>
+     <width>1894</width>
+     <height>22</height>
     </rect>
    </property>
   </widget>
