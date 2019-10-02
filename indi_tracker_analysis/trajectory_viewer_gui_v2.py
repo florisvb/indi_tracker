@@ -957,8 +957,13 @@ class QTrajectory(TemplateBaseClass):
         self.time_epoch = self.pd.time_epoch.groupby(self.pd.index).mean().values
         self.speed = self.pd.speed.groupby(self.pd.index).mean().values
         self.nflies = data_slicing.get_nkeys_per_frame(self.pd)
-        self.time_epoch_continuous = np.linspace(np.min(self.time_epoch), np.max(self.time_epoch), len(self.nflies))
-        
+        if len(self.nflies) == 0:
+            self.nflies = [0, 0, 0]
+        try:
+            self.time_epoch_continuous = np.linspace(np.min(self.time_epoch), np.max(self.time_epoch), len(self.nflies))
+        except:
+            self.time_epoch_continuous = np.linspace(0, 1, 1)
+            
     def save_delete_cut_join_instructions(self, instructions):
         self.delete_cut_join_filename = os.path.join(self.path, 'delete_cut_join_instructions.pickle')
         if os.path.exists(self.delete_cut_join_filename):
