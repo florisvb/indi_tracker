@@ -694,7 +694,12 @@ class QTrajectory(TemplateBaseClass):
             pass
         else:
             # note: use calibrate_gphoto2_camera.py to precalculate with optional delay
-            self.gphoto2_calibration, self.gphoto2_delay_opt = calibrate_gphoto2_camera.get_optimal_gphoto2_homography(self.path) 
+            try:
+                self.gphoto2_calibration, self.gphoto2_delay_opt = calibrate_gphoto2_camera.get_optimal_gphoto2_homography(self.path) 
+            except:
+                print('Skipping calibration of gphoto images')
+                self.gphoto2_calibration = None
+                self.gphoto2_delay_opt = 0
 
         if hasattr(self, 'gphoto2_flies'):
             pass
@@ -759,33 +764,34 @@ class QTrajectory(TemplateBaseClass):
             ellipse = flyimg.fly_ellipses_small[i]
             ellipse_large = flyimg.fly_ellipses_large[i]
 
-            tracker_point = calibrate_gphoto2_camera.reproject_gphoto2_point_onto_tracker([ellipse[0]], self.gphoto2_calibration)[0]
-            fly = {'tracker_point': tracker_point, 'color': rgb_color}
-            self.gphoto2_fly_ellipses_to_draw_on_tracker.append(fly)
+            if self.gphoto2_calibration is not None:
+                tracker_point = calibrate_gphoto2_camera.reproject_gphoto2_point_onto_tracker([ellipse[0]], self.gphoto2_calibration)[0]
+                fly = {'tracker_point': tracker_point, 'color': rgb_color}
+                self.gphoto2_fly_ellipses_to_draw_on_tracker.append(fly)
 
-            # ellipse mask
-            enlarged_ellipse_large = (( ellipse_large[0][0], ellipse_large[0][1]),
-                                            (int(ellipse_large[1][0]*2), int(ellipse_large[1][1]*2)),
-                                            ellipse_large[2])
+                # ellipse mask
+                enlarged_ellipse_large = (( ellipse_large[0][0], ellipse_large[0][1]),
+                                                (int(ellipse_large[1][0]*2), int(ellipse_large[1][1]*2)),
+                                                ellipse_large[2])
 
-            gphoto2img = cv2.ellipse(gphoto2img,enlarged_ellipse_large,rgb_color,5)
-            last_fly = i
+                gphoto2img = cv2.ellipse(gphoto2img,enlarged_ellipse_large,rgb_color,5)
+                last_fly = i
 
-            if i < len(img_boxes):
-                zoom = flyimg.convert_bgr_to_rgb(flyimg.rois_fly[i]) 
-                try:
-                    actual_width = np.max(zoom.shape) # won't work for corners
-                    ellipse_large_centered = (( int(actual_width/2.), int(actual_width/2.)),
-                                                (int(enlarged_ellipse_large[1][0]), int(enlarged_ellipse_large[1][1])),
-                                                enlarged_ellipse_large[2])
-                    zoom = cv2.ellipse(zoom,ellipse_large_centered,rgb_color,5)
+                if i < len(img_boxes):
+                    zoom = flyimg.convert_bgr_to_rgb(flyimg.rois_fly[i]) 
+                    try:
+                        actual_width = np.max(zoom.shape) # won't work for corners
+                        ellipse_large_centered = (( int(actual_width/2.), int(actual_width/2.)),
+                                                    (int(enlarged_ellipse_large[1][0]), int(enlarged_ellipse_large[1][1])),
+                                                    enlarged_ellipse_large[2])
+                        zoom = cv2.ellipse(zoom,ellipse_large_centered,rgb_color,5)
 
-                    zoom = pg.ImageItem(zoom, autoLevels=False)
-                    img_boxes[i].clear()
-                    img_boxes[i].addItem(zoom)
-                except:
-                    print('Failed to get zoomed fly')
-                    pass
+                        zoom = pg.ImageItem(zoom, autoLevels=False)
+                        img_boxes[i].clear()
+                        img_boxes[i].addItem(zoom)
+                    except:
+                        print('Failed to get zoomed fly')
+                        pass
                     
         for j in range(last_fly+1, len(img_boxes)):
             img_boxes[j].clear()
