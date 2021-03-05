@@ -1,5 +1,8 @@
 import os
-import gphoto2 as gp
+try:
+    import gphoto2 as gp
+except:
+    pass
 from optparse import OptionParser
 
 '''
