@@ -75,6 +75,7 @@ def convert_identifier_code_to_epoch_time(identifiercode):
     t = time.strptime(strt, "%Y%m%d_%H%M%S")
     epoch_time = time.mktime(t) # assuming PDT / PST
     return epoch_time
+
   
 class QTrajectory(TemplateBaseClass):
     def __init__(self, data_filename, bgimg, delta_video_filename, load_original=False, clickable_width=6, draw_interesting_time_points=True, draw_config_function=False):
@@ -104,6 +105,7 @@ class QTrajectory(TemplateBaseClass):
         self.ui.trajec_cut.clicked.connect(self.toggle_trajec_cut)
         self.ui.trajec_join_collect.clicked.connect(self.toggle_trajec_join_collect)
         self.ui.trajec_select_all.clicked.connect(self.select_all_trajecs)
+        self.ui.trajec_select_drag.clicked.connect(self.toggle_trajec_drag)
         self.ui.trajec_join_add_data.clicked.connect(self.toggle_trajec_join_add_data)
         self.ui.trajec_join_save.clicked.connect(self.trajec_join_save)
         self.ui.trajec_join_clear.clicked.connect(self.toggle_trajec_join_clear)
@@ -118,6 +120,7 @@ class QTrajectory(TemplateBaseClass):
         self.ui.get_original_objid.clicked.connect(self.trajec_get_original_objid)
         self.ui.save_colors.clicked.connect(self.save_trajec_colors)
 
+        self.ui.selection_radius.setPlainText(str(100))
         self.ui.min_selection_length.setPlainText(str(0))
         self.ui.max_selection_length.setPlainText(str(-1)) # -1 means all
         
@@ -182,6 +185,12 @@ class QTrajectory(TemplateBaseClass):
         self.delete_objects = False
         self.join_objects = False
         self.add_data = False
+        self.drag = False
+
+        self.selection_radius = self.ui.__getattribute__('selection_radius')
+        self.selection_radius = int(self.selection_radius.toPlainText())
+        self.drag_rect = {'center_x': 100, 'center_y': 100, 'w': self.selection_radius, 'h': self.selection_radius}
+        
         self.crosshair_pen = pg.mkPen('w', width=1)
         
         self.ui.qtplot_timetrace.enableAutoRange('xy', False)
@@ -275,6 +284,8 @@ class QTrajectory(TemplateBaseClass):
         self.delete_objects = False
         self.add_data = False
         self.get_original_objid = False
+        self.drag = False
+        self.draw_trajectories()
     
     def set_movie_speed(self, data):
         if data >0:
@@ -453,11 +464,34 @@ class QTrajectory(TemplateBaseClass):
         
         print('Ready to collect object id numbers. Click on traces to add object id numbers to the list. Click "save object id numbers" to save, and reset the list')
     
+    def toggle_trajec_drag(self):
+        self.set_all_buttons_false()
+        
+        self.drag = True
+        self.selection_radius = self.ui.__getattribute__('selection_radius')
+        self.selection_radius = int(self.selection_radius.toPlainText())
+        self.drag_rect['w'] = self.selection_radius
+        self.drag_rect['h'] = self.selection_radius
+        self.crosshair_pen = pg.mkPen('m', width=1)
+        self.ui.qttext_selected_objids.clear()
+
+        self.toggle_trajec_join_clear(join=False)
+
+        #self.draw_trajectories()
+        
+        print('Click to place circle. Use text box to change radius and then click.')
+    
+
     def select_all_trajecs(self):
         if not self.join_objects:
-            self.toggle_trajec_join_collect()
+            #self.toggle_trajec_join_collect()
+            self.join_objects = True
+            self.ui.qttext_selected_objids.clear()
         
         if not SMALL:
+            self.selection_radius = self.ui.__getattribute__('selection_radius')
+            self.selection_radius = int(self.selection_radius.toPlainText())
+
             min_len = self.ui.__getattribute__('min_selection_length')
             min_len = int(min_len.toPlainText())
 
@@ -476,7 +510,32 @@ class QTrajectory(TemplateBaseClass):
             key = trace.curve.key
             trajec_length = len(self.pd[self.pd.objid==key])
             if trajec_length > min_len and trajec_length < max_len:
-                self.trace_clicked(trace.curve)
+                if not self.drag:
+                    self.trace_clicked(trace.curve)
+                    self.object_id_numbers.append(key)
+                else:
+                    # check to see if trajec in radius
+                    trajec = self.dataset.trajec(key)
+                    first_time = np.max([self.troi[0], trajec.time_epoch[0]])
+                    first_time_index = np.argmin( np.abs(trajec.time_epoch-first_time) )
+                    last_time = np.min([self.troi[-1], trajec.time_epoch[-1]])
+                    last_time_index = np.argmin( np.abs(trajec.time_epoch-last_time) )
+
+                    trajec_y = trajec.position_y[first_time_index:last_time_index]
+                    trajec_x = trajec.position_x[first_time_index:last_time_index]
+                    
+                    trajec_y_dist = trajec_y - self.drag_rect['center_x']
+                    trajec_x_dist = trajec_x - self.drag_rect['center_y']
+
+                    if ((np.abs(trajec_y_dist) < self.selection_radius/2.)*(np.abs(trajec_x_dist) < self.selection_radius/2.)).any():
+                        self.trace_clicked(trace.curve)
+                        self.object_id_numbers.append(key)
+
+        self.object_id_numbers = list(np.unique(self.object_id_numbers))
+
+        self.join_objects = False
+        self.ui.qttext_selected_objids.setPlainText(str(self.object_id_numbers))
+        #self.ui.qttext_selected_objids.clear()
 
     def toggle_trajec_join_add_data(self):
         self.set_all_buttons_false()
@@ -486,8 +545,10 @@ class QTrajectory(TemplateBaseClass):
         self.crosshair_pen = pg.mkPen((0,0,255), width=1)
         print('Adding data!')
    
-    def toggle_trajec_join_clear(self):
-        self.set_all_buttons_false()
+    def toggle_trajec_join_clear(self, join=True):
+        if join:
+            self.set_all_buttons_false()
+
         self.trajec_width_dict = {}
 
         for key in self.object_id_numbers:
@@ -498,9 +559,12 @@ class QTrajectory(TemplateBaseClass):
         self.add_data = []
         self.ui.qttext_selected_objids.clear()
         print('Join list cleared')
+
+
         self.draw_trajectories()
         
-        self.toggle_trajec_join_collect()
+        if join:
+            self.toggle_trajec_join_collect()
     
     ### Mouse moved / clicked callbacks
     
@@ -511,25 +575,46 @@ class QTrajectory(TemplateBaseClass):
             
         self.crosshair_vLine.setPen(self.crosshair_pen)
         self.crosshair_hLine.setPen(self.crosshair_pen)
+
+        #print(self.mouse_position)
         
     def mouse_clicked(self, data):
+        print('click')
         self.time_since_mouse_click = time.time() - self.time_mouse_click
         if self.time_since_mouse_click > 0.5:
             if self.add_data:
                 self.add_data_to_trajecs_to_join()
         self.time_mouse_click = time.time()
         
-        if self.get_original_objid:
-            s = 'time_epoch > ' + str(self.current_time_epoch - 1) + ' & time_epoch < ' + str(self.current_time_epoch + 1)
-            pd_tmp = self.original_pd.query(s)
-            print s, pd_tmp.shape
-            x_diff = np.abs(pd_tmp.position_x.values - self.mouse_position[1])
-            y_diff = np.abs(pd_tmp.position_y.values - self.mouse_position[0])
-            i = np.argmin(x_diff + y_diff)
-            objid = pd_tmp.iloc[i].objid
-            self.ui.qttext_show_original_objid.clear()
-            self.ui.qttext_show_original_objid.setPlainText(str(int(objid)))
-        
+        if self.drag:
+            if self.mouse_position[0] != self.drag_rect['center_x']:
+                self.selection_radius = self.ui.__getattribute__('selection_radius')
+                self.selection_radius = int(self.selection_radius.toPlainText())
+
+                self.drag_rect['h'] = self.selection_radius
+                self.drag_rect['w'] = self.selection_radius
+                self.drag_rect['center_x'] = self.mouse_position[0]
+                self.drag_rect['center_y'] = self.mouse_position[1]
+
+
+                self.toggle_trajec_join_clear(join=False)
+
+                self.draw_trajectories()
+
+        try:
+            if self.get_original_objid:
+                s = 'time_epoch > ' + str(self.current_time_epoch - 1) + ' & time_epoch < ' + str(self.current_time_epoch + 1)
+                pd_tmp = self.original_pd.query(s)
+                print s, pd_tmp.shape
+                x_diff = np.abs(pd_tmp.position_x.values - self.mouse_position[1])
+                y_diff = np.abs(pd_tmp.position_y.values - self.mouse_position[0])
+                i = np.argmin(x_diff + y_diff)
+                objid = pd_tmp.iloc[i].objid
+                self.ui.qttext_show_original_objid.clear()
+                self.ui.qttext_show_original_objid.setPlainText(str(int(objid)))
+        except:
+            pass
+
     def trace_clicked(self, item): 
         if self.join_objects:
             if item.key not in self.object_id_numbers:
@@ -847,6 +932,10 @@ class QTrajectory(TemplateBaseClass):
         self.ui.qtplot_trajectory.addItem(self.img)
         self.img.setZValue(-200)  # make sure image is behind other data
         
+        # drag box
+        if self.drag:
+            self.draw_drag_rect()
+
         # cross hair mouse stuff
         self.ui.qtplot_trajectory.scene().sigMouseMoved.connect(self.mouse_moved)
         self.ui.qtplot_trajectory.scene().sigMouseClicked.connect(self.mouse_clicked)
@@ -854,7 +943,7 @@ class QTrajectory(TemplateBaseClass):
         self.crosshair_hLine = pg.InfiniteLine(angle=0, movable=False)
         self.ui.qtplot_trajectory.addItem(self.crosshair_vLine, ignoreBounds=True)
         self.ui.qtplot_trajectory.addItem(self.crosshair_hLine, ignoreBounds=True)
-        
+
         #if cut:
         #    return
 
@@ -920,7 +1009,19 @@ class QTrajectory(TemplateBaseClass):
         self.draw_gphoto2_flies_on_tracker()
         
         #self.save_trajec_color_width_dicts()
-    
+
+    def draw_drag_rect(self):
+        w = self.drag_rect['w']
+        h = self.drag_rect['h']
+        x = self.drag_rect['center_x']-int(w/2.)
+        y = self.drag_rect['center_y']-int(h/2.)
+
+        r1 = pg.QtGui.QGraphicsEllipseItem(x, y, w, h)
+        r1.setPen(pg.mkPen(None))
+        r1.setBrush(pg.mkBrush(255,0,255,50))
+
+        self.ui.qtplot_trajectory.addItem(r1)
+
     def draw_data_to_add(self):
         for data in self.data_to_add:
             print data
