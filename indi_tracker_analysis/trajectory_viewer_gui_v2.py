@@ -389,6 +389,7 @@ class QTrajectory(TemplateBaseClass):
         f.close()
         
     def trajec_undo(self):
+        self.toggle_trajec_join_clear()
         instruction = self.instructions.pop(-1)
         filename = os.path.join(self.path, 'delete_cut_join_instructions.pickle')
         if os.path.exists(filename):
