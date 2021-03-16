@@ -17,14 +17,18 @@ import indi_tracker_analysis.find_flies_in_image_directory as find_flies_in_imag
 from indi_tracker_analysis.find_flies_in_image_directory import FlyImg
 
 import calibrate_gphoto2_camera
+import split_bag
 
 import matplotlib.pyplot as plt
 
 import multi_tracker_analysis as mta
+
 import cv2
 import copy
 
 import progressbar
+
+import pandas
 
 import subprocess
 import warnings
@@ -78,7 +82,7 @@ def convert_identifier_code_to_epoch_time(identifiercode):
 
   
 class QTrajectory(TemplateBaseClass):
-    def __init__(self, data_filename, bgimg, delta_video_filename, load_original=False, clickable_width=6, draw_interesting_time_points=True, draw_config_function=False):
+    def __init__(self, data_filename, bgimg, delta_video_filename, load_original=False, clickable_width=6, draw_interesting_time_points=True, draw_config_function=False, chunked_dvbag=False):
         self.load_original = load_original 
         
         TemplateBaseClass.__init__(self)
@@ -93,6 +97,7 @@ class QTrajectory(TemplateBaseClass):
         # options
         self.draw_interesting_time_points = draw_interesting_time_points
         self.draw_config_function = draw_config_function
+        self.chunked_dvbag = chunked_dvbag
 
         # Buttons
         self.ui.save_trajecs.clicked.connect(self.save_trajectories)
@@ -139,10 +144,20 @@ class QTrajectory(TemplateBaseClass):
         self.clickable_width = clickable_width
         
         # load delta video bag
-        if delta_video_filename != 'none':
-            self.dvbag = rosbag.Bag(delta_video_filename)
+        if not self.chunked_dvbag:
+            print('Loading delta video')
+            if delta_video_filename != 'none':
+                self.dvbag = rosbag.Bag(delta_video_filename)
+            else:
+                self.dvbag = None
+            print('Done loading delta video')
         else:
-            self.dvbag = None
+            print('Chunked bag directory: ')
+            self.delta_video_dirname = delta_video_filename.split('.bag')[0] + "_chunked"
+            print(self.delta_video_dirname)
+            self.delta_video_time_to_chunk_dict = pandas.read_hdf(os.path.join(self.delta_video_dirname, "time_to_chunk_dict.hdf"))
+            print('First chunk: ')
+            print(self.delta_video_time_to_chunk_dict.chunkname.values[0])
 
         # find gphoto2 directory
         s = self.config.identifiercode + '_' + 'gphoto2'
@@ -440,10 +455,16 @@ class QTrajectory(TemplateBaseClass):
         print('Deleting objects!')
 
         # first delete selected trajectories
-        print 'Deleting selected objects: ', self.object_id_numbers
-        while len(self.object_id_numbers) > 0:
-            key = self.object_id_numbers.pop()
+        
+        if len(self.object_id_numbers) == 1:
+            print 'Deleting selected objects: ', self.object_id_numbers
+            while len(self.object_id_numbers) > 0:
+                key = self.object_id_numbers.pop()
             self.delete_object_id_number(key, redraw=False)
+        else:
+            print 'Mass deleting ' + str(len(self.object_id_numbers)) + ' objects'
+            self.delete_object_id_group(self.object_id_numbers, redraw=False)
+            self.object_id_numbers = []
 
         self.draw_trajectories()
         self.draw_timeseries_vlines_for_interesting_timepoints()
@@ -507,8 +528,8 @@ class QTrajectory(TemplateBaseClass):
         pd_subset = mta.data_slicing.get_data_in_epoch_timerange(self.pd, self.troi)
         keys = np.unique(pd_subset.objid.values)
 
-        for trace in self.plotted_traces:
-            key = trace.curve.key
+        for key in keys:
+            #key = trace.curve.key
             trajec_length = len(self.pd[self.pd.objid==key])
             if trajec_length > min_len and trajec_length < max_len:
                 if not self.drag:
@@ -529,7 +550,7 @@ class QTrajectory(TemplateBaseClass):
                     trajec_x_dist = trajec_x - self.drag_rect['center_y']
 
                     if ((np.abs(trajec_y_dist) < self.selection_radius/2.)*(np.abs(trajec_x_dist) < self.selection_radius/2.)).any():
-                        self.trace_clicked(trace.curve)
+                        #self.trace_clicked(trace.curve)
                         self.object_id_numbers.append(key)
 
         self.object_id_numbers = list(np.unique(self.object_id_numbers))
@@ -719,6 +740,18 @@ class QTrajectory(TemplateBaseClass):
         
         print 'Reset object id list - you may collect a new selection of objects now'
         
+    def delete_object_id_group(self, keys, redraw=True):
+        instructions = {'action': 'delete',
+                        'order': time.time(),
+                        'objid': keys}
+        self.save_delete_cut_join_instructions(instructions)
+        # update gui
+        #self.trajec_to_color_dict[key] = (0,0,0,0) 
+        self.pd = mta.read_hdf5_file_to_pandas.delete_cut_join_trajectories_according_to_instructions(self.pd, instructions, interpolate_joined_trajectories=True)
+        if redraw:
+            self.draw_trajectories()
+            self.draw_timeseries_vlines_for_interesting_timepoints()
+
     def delete_object_id_number(self, key, redraw=True):
         instructions = {'action': 'delete',
                         'order': time.time(),
@@ -734,7 +767,7 @@ class QTrajectory(TemplateBaseClass):
     ### Drawing functions
     
     def draw_timeseries_vlines_for_interesting_timepoints(self):
-        if self.draw_interesting_time_points:
+        if 1:
             self.calc_time_etc()
             
             # clear
@@ -749,6 +782,7 @@ class QTrajectory(TemplateBaseClass):
             # draw
             self.nflies_plot = self.ui.qtplot_timetrace.plot(x=self.time_epoch_continuous, y=self.nflies)
             
+        if self.draw_interesting_time_points:
             objid_ends = self.pd.groupby('objid').time_epoch.max()
             for key in objid_ends.keys():
                 t = objid_ends[key]
@@ -1089,10 +1123,15 @@ class QTrajectory(TemplateBaseClass):
         print 'loading image sequence from delta video bag - may take a moment'
         pbar = progressbar.ProgressBar().start()
         
-        rt0 = rospy.Time(timerange[0])
-        rt1 = rospy.Time(timerange[1])
-        self.msgs = self.dvbag.read_messages(start_time=rt0, end_time=rt1)
-        
+        if not self.chunked_dvbag:
+            rt0 = rospy.Time(timerange[0])
+            rt1 = rospy.Time(timerange[1])
+            self.msgs = self.dvbag.read_messages(start_time=rt0, end_time=rt1)
+        else:
+            print('Loading video from chunked bags')
+            self.msgs = split_bag.load_messages_for_chunked_bag(self.delta_video_time_to_chunk_dict, timerange[0], timerange[1])
+            print('Done loading video from chunked bags')
+
         self.image_sequence = []
         self.image_sequence_timestamps = []
         t0 = None
@@ -1230,6 +1269,7 @@ if __name__ == '__main__':
     parser.add_option('--filename', type=str, help="name and path of the hdf5 tracked_objects filename")
     parser.add_option('--bgimg', type=str, help="name and path of the background image")
     parser.add_option('--dvbag', type=str, default='none', help="name and path of the delta video bag file, optional")
+    parser.add_option('--chunked_dvbag', type=int, default=0, help="if 1, look for a chunked bag created using chunk_bag.py, which works well for very large bags")
     parser.add_option('--config', type=str, default='none', help="name and path of a configuration file, optional. If the configuration file has an attribute 'sensory_stimulus_on', which should be a list of epoch timestamps e.g. [[t1,t2],[t3,4]], then these timeframes will be highlighted in the gui.")
     (options, args) = parser.parse_args()
     
@@ -1238,15 +1278,17 @@ if __name__ == '__main__':
             raise ValueError('Path needs to be a directory!')
         options.filename = mta.read_hdf5_file_to_pandas.get_filename(options.path, 'trackedobjects.hdf5')
         options.config = mta.read_hdf5_file_to_pandas.get_filename(options.path, 'config')
-        options.dvbag = mta.read_hdf5_file_to_pandas.get_filename(options.path, 'delta_video.bag')
+        if options.dvbag == 'none':
+            options.dvbag = mta.read_hdf5_file_to_pandas.get_filename(options.path, 'delta_video.bag')
         options.bgimg = mta.read_hdf5_file_to_pandas.get_filename(options.path, '_bgimg_')
-    
+
     if options.movie != 1:
         options.dvbag = 'none'
     
     Qtrajec = QTrajectory(options.filename, options.bgimg, options.dvbag, options.load_original, options.clickable_width, 
         options.draw_interesting_time_points,
-        options.draw_config_function)
+        options.draw_config_function,
+        options.chunked_dvbag)
     Qtrajec.run()
     
     if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
