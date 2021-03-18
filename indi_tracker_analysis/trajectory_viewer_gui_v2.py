@@ -528,7 +528,11 @@ class QTrajectory(TemplateBaseClass):
         pd_subset = mta.data_slicing.get_data_in_epoch_timerange(self.pd, self.troi)
         keys = np.unique(pd_subset.objid.values)
 
+        print('There are ' + str(len(self.plotted_traces)) + ' traces plotted')
         for key in keys:
+            if len(self.plotted_traces) > 0:
+                trace = self.plotted_traces[self.plotted_traces_keys.index(key)]
+                
             #key = trace.curve.key
             trajec_length = len(self.pd[self.pd.objid==key])
             if trajec_length > min_len and trajec_length < max_len:
@@ -549,9 +553,19 @@ class QTrajectory(TemplateBaseClass):
                     trajec_y_dist = trajec_y - self.drag_rect['center_x']
                     trajec_x_dist = trajec_x - self.drag_rect['center_y']
 
-                    if ((np.abs(trajec_y_dist) < self.selection_radius/2.)*(np.abs(trajec_x_dist) < self.selection_radius/2.)).any():
-                        #self.trace_clicked(trace.curve)
-                        self.object_id_numbers.append(key)
+                    if self.selection_radius > 0:
+                        if ((np.abs(trajec_y_dist) < self.selection_radius/2.)*(np.abs(trajec_x_dist) < self.selection_radius/2.)).any():
+                            if len(self.plotted_traces) > 0:
+                                self.trace_clicked(trace.curve)
+                            else:
+                                self.object_id_numbers.append(key)
+                    else:
+                        if ((np.abs(trajec_y_dist) > np.abs(self.selection_radius)/2.).all() or (np.abs(trajec_x_dist) > np.abs(self.selection_radius)/2.).all()):
+
+                            if len(self.plotted_traces) > 0:
+                                self.trace_clicked(trace.curve)
+                            else:
+                                self.object_id_numbers.append(key)
 
         self.object_id_numbers = list(np.unique(self.object_id_numbers))
 
@@ -1048,12 +1062,15 @@ class QTrajectory(TemplateBaseClass):
     def draw_drag_rect(self):
         w = self.drag_rect['w']
         h = self.drag_rect['h']
-        x = self.drag_rect['center_x']-int(w/2.)
-        y = self.drag_rect['center_y']-int(h/2.)
+        x = self.drag_rect['center_x']-np.abs(int(w/2.))
+        y = self.drag_rect['center_y']-np.abs(int(h/2.))
 
-        r1 = pg.QtGui.QGraphicsEllipseItem(x, y, w, h)
+        r1 = pg.QtGui.QGraphicsEllipseItem(x, y, np.abs(w), np.abs(h))
         r1.setPen(pg.mkPen(None))
-        r1.setBrush(pg.mkBrush(255,0,255,50))
+        if self.selection_radius > 0:
+            r1.setBrush(pg.mkBrush(255,0,255,50))
+        else:
+            r1.setBrush(pg.mkBrush(0,255,0,50))
 
         self.ui.qtplot_trajectory.addItem(r1)
 
