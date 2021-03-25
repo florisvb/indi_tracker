@@ -550,17 +550,16 @@ class QTrajectory(TemplateBaseClass):
                     trajec_y = trajec.position_y[first_time_index:last_time_index]
                     trajec_x = trajec.position_x[first_time_index:last_time_index]
                     
-                    trajec_y_dist = trajec_y - self.drag_rect['center_x']
-                    trajec_x_dist = trajec_x - self.drag_rect['center_y']
+                    trajec_dist = np.sqrt((trajec_y - self.drag_rect['center_x'])**2 + (trajec_x - self.drag_rect['center_y'])**2 )
 
                     if self.selection_radius > 0:
-                        if ((np.abs(trajec_y_dist) < self.selection_radius/2.)*(np.abs(trajec_x_dist) < self.selection_radius/2.)).any():
+                        if (trajec_dist < self.selection_radius/2.).any():
                             if len(self.plotted_traces) > 0:
                                 self.trace_clicked(trace.curve)
                             else:
                                 self.object_id_numbers.append(key)
                     else:
-                        if ((np.abs(trajec_y_dist) > np.abs(self.selection_radius)/2.).all() or (np.abs(trajec_x_dist) > np.abs(self.selection_radius)/2.).all()):
+                        if (trajec_dist > self.selection_radius/2.).all():
 
                             if len(self.plotted_traces) > 0:
                                 self.trace_clicked(trace.curve)
