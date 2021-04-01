@@ -559,7 +559,7 @@ class QTrajectory(TemplateBaseClass):
                             else:
                                 self.object_id_numbers.append(key)
                     else:
-                        if (trajec_dist > self.selection_radius/2.).all():
+                        if (trajec_dist > np.abs(self.selection_radius)/2.).all():
 
                             if len(self.plotted_traces) > 0:
                                 self.trace_clicked(trace.curve)
