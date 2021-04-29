@@ -1133,6 +1133,15 @@ class QTrajectory(TemplateBaseClass):
         self.instructions.append(instructions)
   
     def load_image_sequence(self):
+        try:
+            del(self.image_sequence)
+            del(self.msgs)
+            for bag in self.bags:
+                bag.close()
+            print('Deleted loaded image sequence and closed bags')
+        except:
+            pass
+
         version = subprocess.check_output(["rosversion", "-d"])
 
         timerange = self.troi
@@ -1145,7 +1154,7 @@ class QTrajectory(TemplateBaseClass):
             self.msgs = self.dvbag.read_messages(start_time=rt0, end_time=rt1)
         else:
             print('Loading video from chunked bags')
-            self.msgs = split_bag.load_messages_for_chunked_bag(self.delta_video_time_to_chunk_dict, timerange[0], timerange[1])
+            self.msgs, self.bags = split_bag.load_messages_for_chunked_bag(self.delta_video_time_to_chunk_dict, timerange[0], timerange[1])
             print('Done loading video from chunked bags')
 
         self.image_sequence = []
@@ -1234,16 +1243,27 @@ class QTrajectory(TemplateBaseClass):
         print "ffmpeg -n -i '"'animation_%04d.jpg'"' animation.m4v"
         print ' ^ that one is Mac compatible'
     def get_next_reconstructed_image(self):
+        if len(self.image_sequence) < self.skip_frames:
+            print('No images in sequence')
+            return None, None
         self.current_frame += self.skip_frames
         if self.current_frame >= len(self.image_sequence)-1:
             self.current_frame = -1
-        img = self.image_sequence[self.current_frame]      
-        return self.image_sequence_timestamps[self.current_frame], img
-    
+        try:
+            img = self.image_sequence[self.current_frame]      
+            return self.image_sequence_timestamps[self.current_frame], img
+        except:
+            print('Missing frame? Frame: ' + str(self.current_frame) + ' skipping ahead.')
+            return self.get_next_reconstructed_image()
+
     def updateData(self):
         if self.play:
             ## Display the data
             time_epoch, cvimg = self.get_next_reconstructed_image()
+            if cvimg is None:
+                print('Failed to play video.')
+                self.play = False
+                return
             try:
                 self.img.setImage(cvimg)
             except AttributeError:
