@@ -218,7 +218,7 @@ class QTrajectory(TemplateBaseClass):
                     f12 = pg.FillBetweenItem(curve1=v1, curve2=v2, brush=pg.mkBrush(self.config.sensory_stimulus_rgba[r]) )
                 except:
                     f12 = pg.FillBetweenItem(curve1=v1, curve2=v2, brush=pg.mkBrush((255,0,0,150)) )
-                self.ui.qtplot_timetrace.addItem(f12)
+                self.ui.qtplot_gphoto2times.addItem(f12)
         
         lr = pg.LinearRegionItem(values=self.troi)
         f = 'update_time_region'
@@ -951,7 +951,7 @@ class QTrajectory(TemplateBaseClass):
         
     def draw_trajectories(self, cut=False):
         tstart = self.start_time_epoch
-        self.ui.qttext_time_range.setPlainText(str(self.troi[0]-tstart) + '\nto\n' + str(self.troi[-1]-tstart) ) 
+        self.ui.qttext_time_range.setPlainText(str(self.troi[0]) + '\nto\n' + str(self.troi[-1]) ) 
 
         for plotted_trace in self.plotted_traces:
             try:
