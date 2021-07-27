@@ -18,10 +18,12 @@ on the USB address that is printed out at the start of the script.
 
 '''
 
-def get_list_of_availale_cameras():
+def get_list_of_availale_cameras(context=None):
     print('================')
+    if context is None:
+        context = gp.Context()
     camera_list = []
-    for name, addr in gp.check_result(gp.gp_camera_autodetect()):
+    for name, addr in gp.check_result(gp.gp_camera_autodetect(context)):
         camera_list.append((name, addr))
     if not camera_list:
         print('No camera detected')

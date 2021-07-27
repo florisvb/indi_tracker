@@ -68,17 +68,19 @@ def load_messages_for_chunked_bag(time_to_chunk, t0, t1):
     chunknames = time_to_chunk.query("index >= " + str(first_chunk_idx) + " and index <= " + str(last_chunk_idx)).chunkname.values
 
     master_msgs = None
-
+    bags = []
     for chunkname in chunknames:
         if master_msgs is None:
             bag = rosbag.Bag(chunkname)
             master_msgs = bag.read_messages(start_time=rospy.Time(t0), end_time=rospy.Time(t1))
+            bags.append(bag)
         else:
             bag = rosbag.Bag(chunkname)
             msgs = bag.read_messages(start_time=rospy.Time(t0), end_time=rospy.Time(t1))
             master_msgs = chain(master_msgs, msgs)
-
-    return master_msgs
+            bags.append(bag)
+        
+    return master_msgs, bags
 
 if __name__ == '__main__':
         

@@ -3,7 +3,7 @@ import rotate_fly_in_roi
 
 import cv2
 import numpy as np
-import pickle
+import cPickle as pickle
 import os
 
 import matplotlib.pyplot as plt
@@ -310,7 +310,7 @@ def find_flies_and_load_rois(directory, file, pixels_per_mm, median, median_larg
     fname = os.path.join(new_directory, os.path.basename(file).split('.')[0] + '_flyimg.pickle')
     print fname
     print
-    f = open(fname, 'w')
+    f = open(fname, 'wb')
     pickle.dump(flyimg, f)
     f.close()
 
@@ -337,7 +337,8 @@ def load_all_flyimgs(flyimgs_directory):
     file_list = mta_read.get_filenames(flyimgs_directory, 'flyimg.pickle')
 
     def open_flyimg(file):
-        f = open(file)
+        print('opening file: ', file)
+        f = open(file, 'rb')
         flyimg = pickle.load(f)
         f.close()
         return flyimg
